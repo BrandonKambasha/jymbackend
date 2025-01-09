@@ -14,4 +14,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('participants', ParticipantController::class);
 
+    Route::apiResource('groups', GroupController::class); // CRUD Routes
+
+    Route::post('/groups/{groupId}/join', [GroupController::class, 'joinGroup']); // Join group
+    Route::get('/my-groups', [GroupController::class, 'userGroups']); // Get user's groups
 });
