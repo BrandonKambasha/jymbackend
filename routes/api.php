@@ -3,6 +3,8 @@
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ParticipantController;
+use App\Http\Controllers\GroupController;
+
 
 
 Route::post('/register', [AuthController::class, 'register']);

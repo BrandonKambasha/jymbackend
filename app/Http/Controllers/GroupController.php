@@ -20,42 +20,47 @@ class GroupController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'visibility' => 'required|in:public,private',
-            'duration_days' => 'required|integer|min:1',
-            'contribution' => 'required|numeric|min:0',
-            'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048' // Allow image upload
-
-        ]);
-
-        $iconPath = null;
-
-        if ($request->hasFile('icon')) {
-            $iconFile = $request->file('icon');
-            $iconName = time() . '_' . $iconFile->getClientOriginalName();
-            $iconFile->move(public_path('groupIcons'), $iconName);
-            $iconPath = 'groupIcons/' . $iconName; // Store relative path
-        }
-
-        $inviteCode = null;
-            if ($request->visibility === 'private') {
-                $inviteCode = strtoupper(substr(md5(uniqid()), 0, 8)); // Generate unique 8-character invite code
+        try {
+            \Log::info('Received group creation request', $request->all());
+    
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'visibility' => 'required|in:public,private',
+                'duration_days' => 'required|integer|min:1',
+                'contribution' => 'required|numeric|min:0',
+                'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048' 
+            ]);
+    
+            $iconPath = null;
+            if ($request->hasFile('icon')) {
+                \Log::info('File received for icon upload');
+                $iconPath = $request->file('icon')->store('groupIcons', 'public');
             }
-
-        $group = Group::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'visibility' => $request->visibility,
-            'owner_id' => Auth::id(), // The currently logged-in user is the owner
-            'duration_days' => $request->duration_days,
-            'contribution' => $request->contribution,
-            'icon' => $iconPath, // Store icon path
-
-        ]);
-
-        return response()->json($group, 201);
+    
+            $inviteCode = null;
+            if ($request->visibility === 'private') {
+                $inviteCode = strtoupper(substr(md5(uniqid()), 0, 8));
+            }
+    
+            $group = Group::create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'visibility' => $request->visibility,
+                'owner_id' => Auth::id(),
+                'duration_days' => $request->duration_days,
+                'contribution' => $request->contribution,
+                'icon' => $iconPath, // Save the file path
+                'invite_code' => $inviteCode,
+            ]);
+    
+            \Log::info('Group created successfully', ['group_id' => $group->id]);
+    
+            return response()->json($group, 201);
+        } catch (\Exception $e) {
+            \Log::error('Error creating group', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['error' => 'Something went wrong while creating the group.'], 500);
+        }
     }
 
     /**
@@ -101,7 +106,7 @@ class GroupController extends Controller
             $iconFile->move(public_path('groupIcons'), $iconName);
             $group->icon = 'groupIcons/' . $iconName; // Store relative path
         }
-        
+
         $group->update($request->all());
 
         return response()->json($group);
